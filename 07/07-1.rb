@@ -7,14 +7,14 @@ class Hand
   attr_reader :cards
 
   def initialize(cards)
-    @cards = cards.split('').sort.join
+    @cards = cards.split('').sort_by {CRANKS.index(_1)}.join
   end
 
   # Determine the two or three ranks that will be used to score this hand -
   # lower is better
   def scores
     type = TYPES.each_index.find {TYPES[_1] =~ cards}
-    [type] + [CRANKS.index($1), CRANKS.index($2)].compact.sort
+    [type, CRANKS.index($1), CRANKS.index($2)]
   end
 
   # Puts lower value hands at the start
