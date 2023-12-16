@@ -16,30 +16,23 @@ class Contraption
   def initialize(io)
     @m = Matrix[*io.map {_1.chomp.chars}]
     @beam = [Node.new(0,0,:east)]
-    @illuminated = Set.new([0,0])
+    @illuminated = {}
+    update_illuminated!
   end
 
   # Advance the beam by one space
   def tick!
     @beam = beam.flat_map {follow _1}
-    @illuminated += beam.flatten.map {[_1.y, _1.x]}
+    update_illuminated!
   end
 
   # Run until the beam completely leaves the contraption
   # There's probably a proper way to do this, but we'll just say
   # "if beam_coords has been stable for 100 ticks"
   def run!
-    stable_for = 0
-    until stable_for >= 100
-      pi = illuminated.size
+    until beam.empty?
       tick!
-      if illuminated.size == pi
-        stable_for += 1
-      else
-        stable_for = 0
-      end
       puts "\e[H\e[2J#{self}"
-      p [illuminated.size, stable_for]
     end
   end
 
@@ -52,7 +45,7 @@ class Contraption
   # Create a colorized version of the matrix
   def colorized
     m.clone.tap do |cm|
-      cm.each_with_index {|c,y,x| cm[y,x] = illuminated === [y,x] ? c.colorize(color: :light_cyan, mode: :bold) : c.colorize(:grey)}
+      cm.each_with_index {|c,y,x| cm[y,x] = illuminated.key?([y,x]) ? c.colorize(color: :light_cyan, mode: :bold) : c.colorize(:grey)}
     end
   end
 
@@ -89,9 +82,22 @@ class Contraption
   def move(node, dir)
     n = Node.new(node.y + DIRS[dir][0], node.x + DIRS[dir][1], dir)
     if (0..m.column_size-1) === n.y && (0..m.row_size-1) === n.x
-      return n
+      if illuminated[[n.y,n.x]]&.include? n.dir
+        return nil # we're in a circle
+      else
+        return n
+      end
     end
     nil
+  end
+
+  # Make sure the current value of beam is added to illuminated. Keep track of the
+  # direction because we can use this to avoid circles
+  def update_illuminated!
+    beam.each do |node|
+      illuminated[[node.y,node.x]] ||= Set.new
+      illuminated[[node.y,node.x]] << node.dir
+    end
   end
 
 end
