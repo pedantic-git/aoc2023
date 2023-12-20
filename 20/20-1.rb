@@ -3,8 +3,9 @@
 require 'pp'
 
 class Module
-  attr_reader :destinations
-  def initialize(destinations)
+  attr_reader :name, :destinations
+  def initialize(name, destinations)
+    @name = name
     @destinations = destinations
   end
 
@@ -12,15 +13,14 @@ class Module
     "#<#{self.class} d=#{destinations.join(',')}>"
   end
 
-  # By default, just echo the pulse to all the destinations
-  def receive(from, pulse, network)
-    network.pulse! pulse, destinations
+  def receive(pulse)
+    destinations.map {Pulse.new self.name, _1, pulse.type}
   end
 end
 
 class Conjunction < Module
   attr_reader :origins
-  def initialize(destinations)
+  def initialize(name, destinations)
     super
     @origins = {}
   end
@@ -28,11 +28,20 @@ class Conjunction < Module
   def inspect
     "#<#{self.class} o=#{origins.map {|kv| kv.join(':')}.join(',')} d=#{destinations.join(',')}>"
   end
+
+  def receive(pulse)
+    origins[pulse.origin] = pulse.type
+    if origins.values.uniq == %i[high]
+      destinations.map {Pulse.new self.name, _1, :low}
+    else
+      destinations.map {Pulse.new self.name, _1, :high}
+    end
+  end
 end
 
 class FlipFlop < Module
   attr_accessor :state
-  def initialize(destinations)
+  def initialize(name, destinations)
     super
     self.state = :off
   end
@@ -40,20 +49,46 @@ class FlipFlop < Module
   def inspect
     "#<#{self.class} #{state} d=#{destinations.join(',')}>"
   end
+
+  def receive(pulse)
+    if pulse.type == :high
+      []
+    elsif state == :off
+      self.state = :on
+      destinations.map {Pulse.new self.name, _1, :high}
+    else
+      self.state = :off
+      destinations.map {Pulse.new self.name, _1, :low}
+    end
+  end
 end
+
+Pulse = Struct.new(:origin, :destination, :type)
 
 class Network
   attr_reader :modules
-  attr_accessor :low_pulses, :high_pulses
+  attr_accessor :queue, :low_pulses, :high_pulses
   def initialize(schematics)
     @modules = {}
     @low_pulses = @high_pulses = 0
+    @queue = []
     schematics.each {load_module _1}
     backfill_origins
   end
 
-  def pulse!(pulse, module)
-    # FIXME
+  def start!
+    pulse! Pulse.new(nil, 'broadcaster', :low)
+  end
+
+  def pulse!(pulse)
+    #p pulse
+    if pulse.type == :low
+      self.low_pulses += 1
+    else
+      self.high_pulses += 1
+    end
+    self.queue += modules[pulse.destination]&.receive(pulse) || []
+    queue.shift&.then {pulse! _1}
   end
 
   private
@@ -69,7 +104,7 @@ class Network
     else
       Module
     end
-    modules[name] = kls.new(dests)
+    modules[name] = kls.new(name, dests)
   end
 
   # Add the origins to the conjunction modules
@@ -86,4 +121,6 @@ class Network
 end
 
 n = Network.new(ARGF)
-pp n
+1000.times { n.start! }
+#pp n
+p n.low_pulses*n.high_pulses
