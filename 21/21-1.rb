@@ -13,6 +13,8 @@ class Garden < Grid
     steps.times { step! }
   end
 
+  # Find all the 'S' in the grid. Set them all back to '.' and set their
+  # neighbours to 'S' - taking one step
   def step!
     select {|v,c| c == 'S'}.each do |v,c|
       self[v] = '.'
