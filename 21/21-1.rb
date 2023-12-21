@@ -7,35 +7,33 @@ class Garden < Grid
 
   def initialize(io)
     super
-    self.cursor = find {|v,c| c == 'S'}[0]
   end
 
-  def walk!(steps)
-    to_explore = neighbours {|v,c| c != '#'}
-    if steps-1 == 0 || neighbours.empty?
-      to_explore.each {|v,c| self[v] = 'O'}
-      return
-    end
-    to_explore.each do |v|
-      self.cursor = v
-      walk! steps-1
+  def run!(steps)
+    steps.times { step! }
+  end
+
+  def step!
+    select {|v,c| c == 'S'}.each do |v,c|
+      self[v] = '.'
+      neighbours(v) {|nv,nc| nc != '#'}.each do |nv,nc|
+        self[nv] = 'S'
+      end
     end
   end
 
   def color(v,c)
     return {color: :red, mode: :bold} if c == 'S'
-    return {color: :green, mode: :bold} if c == 'O'
     super
   end
 
   def answer
-    count {|v,c| c == 'O'}
+    count {|v,c| c == 'S'}
   end
 end
 
 steps = ARGV.shift.to_i
 g = Garden.new(ARGF)
-g.walk! steps
+g.run! steps
 puts g
 puts g.answer
-
