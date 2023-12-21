@@ -14,7 +14,7 @@ class Garden < Grid
   def run!(steps)
     steps.times do |n| 
       step!
-      puts "#{n},#{answer}"
+      puts "#{n+1},#{answer}"
     end
   end
 
@@ -41,7 +41,9 @@ class Garden < Grid
   # Any index is valid - just find the % if it's not in the set
   def [](*v)
     v = cast_vector(v)
-    @cells[v] || @cells[Vector[v[0] % initial_se[0]+1, v[1] % initial_se[1]+1]]
+    phantom_coords = Vector[v[0] % (initial_se[0]+1), v[1] % (initial_se[1]+1)]
+    # Return a phantom # or . if we're looking outside our usual bounds. Don't return S unless it's been explicitly set
+    @cells[v] || (@cells[phantom_coords] == '#' ? '#':'.')
   end
 
   # Expand the corners if we've moved out of the bounds
@@ -58,3 +60,4 @@ end
 
 g = Garden.new(ARGF)
 g.run! 300
+#puts g
