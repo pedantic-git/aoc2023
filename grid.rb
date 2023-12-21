@@ -1,10 +1,6 @@
-require 'bundler/inline'
 require 'forwardable'
 require 'matrix'
-gemfile do
-  source 'https://rubygems.org'
-  gem 'colorize'
-end
+require 'colorize'
 
 class Grid
   class OutOfBoundsError < StandardError
@@ -35,8 +31,8 @@ class Grid
     @cells[v]
   end
 
-  def cursor=(*v)
-    v = cast_vector(v)
+  def cursor=(v)
+    v = Vector[*v] if v.kind_of? Array
     @cursor = v
   end
 
