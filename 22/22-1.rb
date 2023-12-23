@@ -1,7 +1,5 @@
 #!/usr/bin/env ruby
 
-require 'pry'
-
 class Range
   # Monkeypatch the missing #overlap? method into Range
   def overlap?(other)
@@ -10,17 +8,15 @@ class Range
 end
 
 class Block
-  class BottomError < StandardError; end
-
   # To make debugging easier
-  @@label = "A"
+  @@label = 0
 
   attr_reader :label
   attr_accessor :x, :y, :z
   def initialize(x1,y1,z1,x2,y2,z2, label=nil)
     if label.nil?
-      @label = @@label
-      @@label = (@@label.ord+1).chr
+      @label = @@label.to_s(26).tr '0-9a-p', 'A-Z'
+      @@label += 1
     end
     @x = x1..x2
     @y = y1..y2
@@ -31,12 +27,6 @@ class Block
     "#<Block #{label} #{x.begin},#{y.begin},#{z.begin}-#{x.end},#{y.end},#{z.end}>"
   end
 
-  # A hypothetical block that represents the space directly below this one
-  def below
-    raise BottomError, "already at bottom" if z.begin == 1
-    Block.new(x.begin, y.begin, z.begin-1, x.end, y.end, z.end-1, "!")
-  end
-
   # Does this block overlap with another block?
   def overlap?(other)
     x.overlap?(other.x) && y.overlap?(other.y) && z.overlap?(other.z)
@@ -44,7 +34,12 @@ class Block
 
   # Is this block supporting another block?
   def supporting?(other)
-    z.end == other.z.begin-1 && (x.cover?(other.x) || y.cover?(other.y))
+    z.end == other.z.begin-1 && x.overlap?(other.x) && y.overlap?(other.y)
+  end
+
+  # Is this block at the bottom?
+  def bottom?
+    z.begin == 1
   end
 
   # Drop this block by 1
@@ -56,32 +51,14 @@ class Block
 end
 
 class Stack < Set
-  class SettledError < StandardError; end
-  
-  # Returns the set sorted by height, lowest first
-  def by_height
-    sort_by {_1.z.begin}
-  end
-
   def run!
-    loop { drop! }
-  rescue SettledError
-    nil
+    while drop!; end
   end
 
   def drop!
-    dropped = false
-    by_height.each do |block|
-      below = block.below
-      if !any? {below.overlap? _1}
-        dropped = true
-        block.drop!
-      end
-    rescue Block::BottomError
-      next
-    end
-    raise SettledError, "blocks have settled" unless dropped
-    self
+    to_drop = supported_by.select {|k,v| v.empty? && !k.bottom?}.keys
+    to_drop.each(&:drop!)
+    !to_drop.empty? # return false when everything is settled
   end
 
   # Check no blocks overlap each other - if they do, something has gone wrong
@@ -90,11 +67,27 @@ class Stack < Set
     !to_a.product(to_a).reject {|a,b| a==b}.map {_1.reduce(&:overlap?)}.any?
   end
 
-  # Find the blocks supporting each block
+  # Find the blocks each block is supporting
   def supports
     to_h {|block| [block, select {|other| block.supporting? other}]}
   end
+
+  # The inverse, find what blocks are supporting each one
+  def supported_by
+    to_h {|block| [block, select {|other| other.supporting? block}]}
+  end
+
+  # Find the blocks that are safe to disintegrate
+  def safe
+    # Count the number of times each block appears on the rhs of supports
+    info = supports
+    tally = info.values.flatten.tally
+    # Reject those entries where one of the "1" answers is on the rhs
+    info.reject {|k,v| v.any? {tally[_1] == 1}}.keys
+  end
+
 end
 
 stack = Stack.new(ARGF.map {Block.new *_1.scan(/\d+/).map(&:to_i)})
-binding.pry stack
+stack.run!
+p stack.safe.size
