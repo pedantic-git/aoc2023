@@ -93,6 +93,48 @@ class Grid
     @se_corner = Vector[@cells.keys.map {_1[0]}.max, @cells.keys.map {_1[1]}.max]
   end
 
+  # Run an A* algorithm to find the shortest path from start to stop, applying
+  # the heuristic function called #heuristic. The weight of an edge is determined by
+  # #edge. If a block is supplied it is used to filter neighbours.
+  def astar(start, stop, &block)
+    @openset = Set.new([start])
+    @camefrom = {}
+    @gscore = Hash.new(Float::INFINITY)
+    @gscore[start] = 0
+    @fscore = Hash.new(Float::INFINITY)
+    @fscore[start] = heuristic(start, start, start, stop)
+    while @openset.any?
+      current = @openset.min_by {@fscore[_1]}
+      if current == stop
+        return [stop].tap do |p|
+          while @camefrom.key? p[0]
+            p.unshift(@camefrom[p[0]])
+          end
+        end
+      end
+      @openset.delete(current)
+      neighbours(current, &block).each do |candidate|
+        tentative = @gscore[current] + edge(current, candidate)
+        if tentative < @gscore[candidate]
+          @camefrom[candidate] = current
+          @gscore[candidate] = tentative
+          @fscore[candidate] = tentative + heuristic(current, candidate, start, stop)
+          @openset << candidate
+        end
+      end
+    end
+    raise "Failed to find path"
+  end
+
+  def heuristic(from, to, start, stop)
+    # The default heuristic is just the number of steps east + south to stop
+    (stop - v).reduce(:+)
+  end
+
+  def edge(v1, v2)
+    1
+  end
+
   protected
 
   # Set the width and height based on what's in there
