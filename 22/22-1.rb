@@ -44,7 +44,6 @@ class Block
 
   # Drop this block by 1
   def drop!
-    raise BottomError, "already at bottom" if z.begin == 1
     self.z = (z.begin-1)..(z.end-1)
   end
 
