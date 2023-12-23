@@ -21,7 +21,7 @@ class Island < Grid
 
   def neighbours(v=cursor)
     dirs = %w[^ > v <]
-    super.select.with_index {|v,i| self[v] == '.' || self[v] == dirs[i]}
+    super.select.with_index {|v,i| self[v] != '#'}
   end
 
   def longest_path
