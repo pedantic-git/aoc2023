@@ -10,14 +10,33 @@ class Hailstone
   end
 
   # https://web.archive.org/web/20180927042445/http://mathforum.org/library/drmath/view/62814.html
+  # Return the time of the intersection
   def intersection(other)
-    time = ((other.pos-pos).cross(other.vel)).r / vel.cross(other.vel).r
+    lhs = vel.cross(other.vel)
+    return nil if lhs.zero?
+    rhs = (other.pos-pos).cross(other.vel)
+    sign = rhs[2]*lhs[2] > 0 ? 1:-1
+    at((rhs.r / lhs.r) * sign)
+  end
+
+  def at(time)
     pos + time * vel
+  end
+
+  # Is the given vector in this hailstone's past?
+  def past?(v)
+    if vel[0] > 0
+      pos[0] > v[0]
+    else
+      pos[0] < v[0]
+    end
   end
 
   # Do the two hailstones intersect within the given range?
   def intersect?(other, r=200000000000000..400000000000000)
-    intersection(other).then {|i| r===i[0] && r===i[1]}
+    i = intersection(other) or return false
+    return false if past?(i) || other.past?(i)
+    r === i[0] && r === i[1]
   end
 
   def inspect
@@ -27,7 +46,4 @@ class Hailstone
 end
 
 hailstones = ARGF.map {Hailstone.new */([-\d]+),\s*([-\d]+),\s*[-\d]+\s*\@\s*([-\d]+),\s*([-\d]+)/.match(_1).captures.map(&:to_f)}
-matches = hailstones.product(hailstones).select {|h1, h2| h1 != h2 && h1.intersect?(h2, 7..27)}
-require 'pry'
-binding.pry
-
+p hailstones.combination(2).count {|h1,h2| h1.intersect?(h2)}
