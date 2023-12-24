@@ -46,6 +46,7 @@ class Island < Grid
 end
 
 i = Island.new(ARGF)
+binding.pry
 i.run!
 puts i
 p i.longest_path.length-1 # The initial node is not a step

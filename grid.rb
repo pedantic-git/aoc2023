@@ -12,14 +12,23 @@ class Grid
   def_delegators :@cells, :each
 
   attr_reader :cursor, :nw_corner, :se_corner
+  attr_accessor :cells
 
-  def initialize(io=nil)
+  def initialize(io_or_cells=nil)
     @cells = {}
-    if io
-      io.each_with_index {|l,y| l.chomp.chars.each_with_index {|c,x| self[y,x] = c}}
+    if io_or_cells.kind_of? Hash
+      @cells = io_or_cells
+    else
+      io_or_cells.each_with_index {|l,y| l.chomp.chars.each_with_index {|c,x| self[y,x] = c}}
     end
     @cursor = nil
     set_corners!
+  end
+
+  def dup
+    self.class.new(cells.dup).tap do |g|
+      g.cursor = cursor
+    end
   end
 
   def []=(*v, c)

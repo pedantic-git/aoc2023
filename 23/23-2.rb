@@ -35,6 +35,9 @@ class Island < Grid
         if candidate == stop
           finished_paths << (path << candidate)
           puts "Found path of #{finished_paths.last.length - 1} steps"
+          copy = dup
+          finished_paths.last.each {|v| copy[v] = 'O'}
+          puts copy
         else
           unfinished_paths << (path.dup << candidate)
         end
